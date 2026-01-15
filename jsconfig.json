@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "target": "esnext",
+    "module": "esnext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true
+  },
+  "include": ["**/*.js"],
+  "exclude": ["node_modules"]
+}

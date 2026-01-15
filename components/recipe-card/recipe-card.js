@@ -43,8 +43,6 @@ template.innerHTML = `
 `
 
 export class RecipeCardElement extends HTMLElement {
-  static observedAttributes = ['src', 'alt']
-
   constructor() {
     super()
 
@@ -58,16 +56,23 @@ export class RecipeCardElement extends HTMLElement {
     const dialog = this.shadowRoot.getElementById('recipe-dialog')
     const openBtn = this.shadowRoot.getElementById('view-btn')
     const closeBtn = this.shadowRoot.getElementById('close-btn')
+    const card = this.shadowRoot.querySelector('.card')
 
-    openBtn.addEventListener('click', () => {
+    const openModal = () => {
       dialog.showModal()
-      document.body.classList.add('no-scroll')
-    })
-    closeBtn.addEventListener('click', () => dialog.close())
+      document.body.style.overflow = 'hidden'
+    }
+    const closeModal = () => {
+      dialog.close()
+    }
+    const handleClose = () => {
+      document.body.style.overflow = ''
+    }
 
-    dialog.addEventListener('close', () => {
-      document.body.classList.remove('no-scroll')
-    })
+    openBtn.addEventListener('click', openModal)
+    card.addEventListener('click', openModal)
+    closeBtn.addEventListener('click', closeModal)
+    dialog.addEventListener('close', handleClose)
   }
 }
 

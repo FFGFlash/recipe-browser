@@ -17,13 +17,13 @@ template.innerHTML = `
 
   <label class="sliders">
     Max Prep:
-    <input type="range" id="prep" min="0">
+    <input type="range" id="prep" min="0" step="5">
     <span id="prep-value">0</span>
   </label>
 
   <label class="sliders">
     Max Cook:
-    <input type="range" id="cook" min="0">
+    <input type="range" id="cook" min="0" step="5">
     <span id="cook-value">0</span>
   </label>
 
@@ -40,18 +40,20 @@ template.innerHTML = `
 class RecipeBrowserElement extends HTMLElement {
   constructor() {
     super()
-    const shadow = this.attachShadow({ mode: "open" })
+
+    const shadow = this.attachShadow({ mode: 'open' })
     shadow.adoptedStyleSheets = [styles]
     shadow.append(template.content.cloneNode(true))
   }
 
   connectedCallback() {
     /** @type {RecipeCardElement[]} */
-    const cards = [...this.querySelectorAll("recipe-card")]
+    const cards = [...this.querySelectorAll('recipe-card')]
 
     /** @type {import('../../utils/read-slot').Transformer<number>} */
     const parseMinutes = text => Number(text.match(/\d+/)?.[0] ?? '0') || 0
 
+    // Read all the slot information for each recipe
     const data = cards.map(card => ({
       element: card,
       name: readSlot(card, 'name'),
@@ -62,15 +64,21 @@ class RecipeBrowserElement extends HTMLElement {
       servings: readSlot(card, 'servings', Number),
     }))
 
+    /** @type {Set<string>} */
     const tagsSet = new Set()
-    let maxPrep = 0, maxCook = 0, maxServings = 0
 
-    for (const item of data) {
-      item.tags.forEach(t => tagsSet.add(t))
-      maxPrep = Math.max(maxPrep, item.prepTime)
-      maxCook = Math.max(maxCook, item.cookTime)
-      maxServings = Math.max(maxServings, item.servings)
-    }
+    // Calculate the upper bounds of each slider and get all the tags
+    const { maxPrep, maxCook, maxServings } = data.reduce(
+      ({ maxPrep, maxCook, maxServings }, item) => {
+        item.tags.forEach(tag => tagsSet.add(tag))
+        return {
+          maxPrep: Math.max(maxPrep, item.prepTime),
+          maxCook: Math.max(maxCook, item.cookTime),
+          maxServings: Math.max(maxServings, item.servings),
+        }
+      },
+      { maxPrep: 0, maxCook: 0, maxServings: 0 },
+    )
 
     /** @type {HTMLInputElement} */
     const searchInput = this.shadowRoot.getElementById('search')
@@ -87,16 +95,18 @@ class RecipeBrowserElement extends HTMLElement {
     const prepValue = this.shadowRoot.getElementById('prep-value')
     const cookValue = this.shadowRoot.getElementById('cook-value')
 
+    // Update the sliders with the proper max bounds
     servingsSlider.max = maxServings
     prepSlider.max = Math.ceil(maxPrep / 5) * 5
     prepSlider.value = prepSlider.max
     cookSlider.max = Math.ceil(maxCook / 5) * 5
     cookSlider.value = cookSlider.max
 
-    servingsValue.textContent = servingsSlider.value
+    // Update the slider value displays to match the values
     prepValue.textContent = prepSlider.value
     cookValue.textContent = cookSlider.value
 
+    // Update the tagFilter with all the available tags
     const tagOptions = [...tagsSet].sort().map(tag => {
       const opt = document.createElement('option')
       opt.value = tag
@@ -106,22 +116,28 @@ class RecipeBrowserElement extends HTMLElement {
     tagFilter.append(...tagOptions)
 
     /**
-     * @param {string} query 
-     * @param {number} minServings 
-     * @param {number} maxPrepTime 
-     * @param {number} maxCookTime 
-     * @param {string[]} selectedTags 
+     * @param {string} query
+     * @param {number} minServings
+     * @param {number} maxPrepTime
+     * @param {number} maxCookTime
+     * @param {string[]} selectedTags
      */
     const applyFilters = (query, minServings, maxPrepTime, maxCookTime, selectedTags) => {
       for (const item of data) {
-        const matchesSearch =
-          item.name.includes(query) || item.description.includes(query)
+        const matchesSearch = item.name.includes(query) || item.description.includes(query)
         const matchesServings = item.servings >= minServings
         const matchesPrep = item.prepTime <= maxPrepTime
         const matchesCook = item.cookTime <= maxCookTime
-        const matchesTags = selectedTags.length === 0 || selectedTags.every(t => item.tags.includes(t))
+        const matchesTags =
+          selectedTags.length === 0 || selectedTags.every(t => item.tags.includes(t))
 
-        item.element.hidden = !(matchesSearch && matchesServings && matchesPrep && matchesCook && matchesTags)
+        item.element.hidden = !(
+          matchesSearch &&
+          matchesServings &&
+          matchesPrep &&
+          matchesCook &&
+          matchesTags
+        )
       }
     }
 
@@ -132,13 +148,16 @@ class RecipeBrowserElement extends HTMLElement {
       const minServings = Number(servingsSlider.value)
       const maxPrepTime = Number(prepSlider.value)
       const maxCookTime = Number(cookSlider.value)
-      const selectedTags = Array.from(tagFilter.selectedOptions).map(o => o.value).filter(Boolean)
+      const selectedTags = Array.from(tagFilter.selectedOptions)
+        .map(o => o.value)
+        .filter(Boolean)
 
       servingsValue.textContent = minServings
       prepValue.textContent = maxPrepTime
       cookValue.textContent = maxCookTime
 
-      if (!force) return applyFiltersDebounced(query, minServings, maxPrepTime, maxCookTime, selectedTags)
+      if (!force)
+        return applyFiltersDebounced(query, minServings, maxPrepTime, maxCookTime, selectedTags)
       return applyFilters(query, minServings, maxPrepTime, maxCookTime, selectedTags)
     }
 
